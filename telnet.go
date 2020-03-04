@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 	"sync"
 )
 
@@ -19,6 +20,7 @@ type Telnet struct {
 	clients      map[net.Conn]bool
 	Motd         string
 	CtrlDclose   bool
+	log          *log.Logger
 }
 
 func (t *Telnet) rxchar(ch byte) {
@@ -130,7 +132,7 @@ func (t *Telnet) clientClose(conn net.Conn) {
 	t.mu.Lock()
 	delete(t.clients, conn)
 	t.client_count--
-	log.Printf("client %v disconnected. clients: %d", conn.RemoteAddr(), t.client_count)
+	t.log.Printf("Telnet client %v disconnected. clients: %d", conn.RemoteAddr(), t.client_count)
 	t.mu.Unlock()
 	conn.Close()
 }
@@ -139,11 +141,11 @@ func (t *Telnet) listenSocket() {
 
 	l, err := net.Listen("tcp", t.address)
 	if err != nil {
-		log.Printf("listen failed %v\n", err)
+		t.log.Printf("Telnet listen failed %v\n", err)
 		return
 	}
 	defer l.Close()
-	log.Printf("Listnening on %s ...\n", t.address)
+	t.log.Printf("Telnet server listnening on %s ...\n", t.address)
 	for {
 		// Listen for an incoming connection.
 		conn, err := l.Accept()
@@ -157,9 +159,13 @@ func (t *Telnet) listenSocket() {
 		t.client_count++
 		t.mu.Unlock()
 		// Handle connections in a new goroutine.
-		log.Printf("client %v connected. clients: %d", conn.RemoteAddr(), t.client_count)
+		t.log.Printf("Telnet client %v connected. clients: %d", conn.RemoteAddr(), t.client_count)
 		go t.handleSocket(conn)
 	}
+}
+
+func (t *Telnet) SetLogger(logger *log.Logger) {
+	t.log = logger
 }
 
 func New(address string) *Telnet {
@@ -167,6 +173,7 @@ func New(address string) *Telnet {
 		rxcond:  &sync.Cond{L: &sync.Mutex{}},
 		clients: make(map[net.Conn]bool),
 		address: address,
+		log:     log.New(os.Stdout, "", log.LstdFlags),
 	}
 	go t.listenSocket()
 	return &t
