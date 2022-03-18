@@ -53,6 +53,7 @@ func (t *Telnet) handleSocket(conn net.Conn) {
 
 		EOT = 4
 
+		OPT_TRANSMIT_BINARY   = 0
 		OPT_ECHO              = 1
 		OPT_SUPPRESS_GO_AHEAD = 3
 	)
@@ -66,6 +67,8 @@ func (t *Telnet) handleSocket(conn net.Conn) {
 	// we will handle echo on this end
 	conn.Write([]byte{IAC, WILL, OPT_ECHO})
 	conn.Write([]byte{IAC, WILL, OPT_SUPPRESS_GO_AHEAD})
+	conn.Write([]byte{IAC, WILL, OPT_TRANSMIT_BINARY})
+	conn.Write([]byte{IAC, DO, OPT_TRANSMIT_BINARY})
 
 	var state int = S_DATA
 
@@ -81,7 +84,7 @@ func (t *Telnet) handleSocket(conn net.Conn) {
 		// the options coming from the client
 		for x := 0; x < n; x++ {
 			ch := buf[x]
-			//fmt.Printf("state %d got char %c [%d]\n", state, ch, ch)
+			//fmt.Printf("state %d got char %c [%d] 0x%2.2x\n", state, ch, ch, ch)
 			switch state {
 			case S_DATA:
 				switch ch {
